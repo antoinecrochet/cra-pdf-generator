@@ -53,12 +53,12 @@ func generatePdf(fileName string) {
 
 	// Sender
 	pdf.SetXY(left, 25)
-	pdf.MultiCell(pdfAreaWidth/2, lineHeight, "Lorem ipsum dolor\nsit amet, consectetur\nadipiscing elit.", "", "L", false)
+	pdf.MultiCell(pdfAreaWidth/2, lineHeight, os.Getenv("TEMPLATE1_SENDER"), "", "L", false)
 
 	// Receiver
 	receiverCellWidth := pdfAreaWidth / 2
 	pdf.SetX(pageWidth - marginX - receiverCellWidth)
-	pdf.MultiCell(receiverCellWidth, lineHeight, "Lorem ipsum dolor\nsit amet, consectetur\nadipiscing elit.", "", "R", false)
+	pdf.MultiCell(receiverCellWidth, lineHeight, os.Getenv("TEMPLATE1_RECEIVER"), "", "R", false)
 
 	pdf.Ln(-1)
 	// Subject
@@ -67,7 +67,7 @@ func generatePdf(fileName string) {
 	objectText := "Objet : "
 	pdf.Cell(pdf.GetStringWidth(objectText), lineHeight, objectText)
 	pdf.SetFontStyle("")
-	pdf.Cell(pdfAreaWidth/2, lineHeight, "Etiam sit amet arcu sodales, iaculis velit sed, imperdiet magna")
+	pdf.Cell(pdfAreaWidth/2, lineHeight, os.Getenv("TEMPLATE1_SUBJECT_PREFIX")+" Novembre 2024")
 	pdf.Ln(-1)
 	pdf.Ln(-1)
 
@@ -92,6 +92,19 @@ func generatePdf(fileName string) {
 		pdf.CellFormat(columnWidth[3], tableLineHeight, "", "1", 0, "C", i%2 == 0, 0, "")
 		pdf.Ln(-1)
 	}
+	pdf.SetX(left)
+	pdf.SetFontStyle("B")
+	pdf.CellFormat(columnWidth[0]+columnWidth[1], tableLineHeight, os.Getenv("TEMPLATE1_TOTAL_TITLE"), "1", 0, "", false, 0, "")
+	pdf.CellFormat(columnWidth[2]+columnWidth[3], tableLineHeight, "10", "1", 0, "C", false, 0, "")
+	pdf.Ln(-1)
+	pdf.Ln(-1)
+
+	pdf.SetX(left)
+	pdf.SetFontStyle("")
+	pdf.CellFormat(pdfAreaWidth/2, lineHeight, os.Getenv("TEMPLATE1_SENDER_SIGNATURE_TITLE"), "", 0, "L", false, 0, "")
+	pdf.SetX(pageWidth - marginX - pdfAreaWidth/2)
+	pdf.CellFormat(pdfAreaWidth/2, lineHeight, os.Getenv("TEMPLATE1_RECEIVER_SIGNATURE_TITLE"), "", 0, "R", false, 0, "")
+
 	fileStr := filepath.Join(currentDirectory, fileName)
 
 	err := pdf.OutputFileAndClose(fileStr)

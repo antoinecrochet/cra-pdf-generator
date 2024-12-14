@@ -4,6 +4,7 @@ go 1.23.4
 
 require (
 	github.com/go-pdf/fpdf v1.4.3
+	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.8.1
 )
 
