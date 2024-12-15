@@ -12,11 +12,14 @@ import (
 
 var currentDirectory string
 
+var fileNameOutput string
+var templateId int
+
 var generatePdfCmd = &cobra.Command{
-	Use:   "generate [CSV file]",
+	Use:   "generate",
 	Short: "Generate CRA in pdf format",
 	Run: func(cmd *cobra.Command, args []string) {
-		generatePdf("cra.pdf")
+		generatePdf(fileNameOutput)
 	},
 }
 
@@ -30,6 +33,10 @@ func init() {
 	fpdf.SetDefaultCatalogSort(true)
 	fpdf.SetDefaultCreationDate(time.Now())
 	fpdf.SetDefaultModificationDate(time.Now())
+
+	// Initialize command flags
+	generatePdfCmd.Flags().StringVarP(&fileNameOutput, "output", "o", "output.pdf", "Output file name")
+	generatePdfCmd.Flags().IntVarP(&templateId, "template", "t", 1, "Pdf template identifier (only available value: 1)")
 
 	// Add generate command to root cmd
 	rootCmd.AddCommand(generatePdfCmd)
