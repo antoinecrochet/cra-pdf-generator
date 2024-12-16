@@ -10,6 +10,13 @@ import (
 	"github.com/go-pdf/fpdf"
 )
 
+// Struct representing a table entry
+type tableEntry struct {
+	day     string
+	present bool
+	fill    bool
+}
+
 // Translated value of time pkg
 var translatedMonths = []string{"Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"}
 var translatedDays = []string{"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"}
@@ -85,6 +92,8 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int) {
 	pdf.SetFillColor(239, 239, 239)
 	pdf.SetFontStyle("")
 
+	tableEntries := buildTableContent(selectedYear, selectedMonth)
+	fmt.Printf("%v", tableEntries)
 	for i := 0; i < 16; i++ {
 		pdf.SetX(left)
 		pdf.CellFormat(columnWidth[0], tableLineHeight, "", "1", 0, "", i%2 == 0, 0, "")
@@ -105,4 +114,23 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int) {
 	pdf.CellFormat(pdfAreaWidth/2, lineHeight, os.Getenv("TEMPLATE1_SENDER_SIGNATURE_TITLE"), "", 0, "L", false, 0, "")
 	pdf.SetX(pageWidth - marginX - pdfAreaWidth/2)
 	pdf.CellFormat(pdfAreaWidth/2, lineHeight, os.Getenv("TEMPLATE1_RECEIVER_SIGNATURE_TITLE"), "", 0, "R", false, 0, "")
+}
+
+// Build table entries representing weekdays of the selected month
+func buildTableContent(selectedYear int, selectedMonth int) []tableEntry {
+	daysInMonth := time.Date(selectedYear, time.Month(selectedMonth)+1, 0, 0, 0, 0, 0, time.UTC).Day()
+	firstWeekdayInMonth := time.Date(selectedYear, time.Month(selectedMonth), 1, 0, 0, 0, 0, time.UTC).Weekday()
+
+	tableEntries := make([]tableEntry, daysInMonth)
+	currentWeekDay := firstWeekdayInMonth
+	for i := 0; i < daysInMonth; i++ {
+		tableEntries[i] = tableEntry{
+			day:     fmt.Sprintf("%s %d", translatedDays[currentWeekDay], i+1),
+			present: true,
+			fill:    currentWeekDay == time.Saturday || currentWeekDay == time.Sunday,
+		}
+		currentWeekDay = (currentWeekDay + 1) % 7
+	}
+
+	return tableEntries
 }
