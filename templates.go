@@ -5,13 +5,19 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"github.com/go-pdf/fpdf"
 )
 
+// Translated value of time pkg
+var translatedMonths = []string{"Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"}
+var translatedDays = []string{"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"}
+
+// List of available templates identifiers
 var availableTemplateIds = []int{1}
 
-func GeneratePdf(fileName string, templateId int) error {
+func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMonth int) error {
 	if !slices.Contains(availableTemplateIds, templateId) {
 		return fmt.Errorf("template %d is not a valid template (available templates are: %v)", templateId, availableTemplateIds)
 	}
@@ -22,7 +28,7 @@ func GeneratePdf(fileName string, templateId int) error {
 	pdf.AddUTF8Font("calibri", "BI", "calibri-font-family/calibri-bold-italic.ttf")
 
 	if templateId == 1 {
-		buildTemplate1(pdf)
+		buildTemplate1(pdf, selectedYear, selectedMonth)
 	}
 
 	fileStr := filepath.Join(currentDirectory, fileName)
@@ -34,7 +40,8 @@ func GeneratePdf(fileName string, templateId int) error {
 	return nil
 }
 
-func buildTemplate1(pdf *fpdf.Fpdf) {
+// Build template 1
+func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int) {
 	pdf.AddPage()
 
 	lineHeight := 6.
@@ -60,7 +67,7 @@ func buildTemplate1(pdf *fpdf.Fpdf) {
 	objectText := "Objet : "
 	pdf.Cell(pdf.GetStringWidth(objectText), lineHeight, objectText)
 	pdf.SetFontStyle("")
-	pdf.Cell(pdfAreaWidth/2, lineHeight, os.Getenv("TEMPLATE1_SUBJECT_PREFIX")+" Novembre 2024")
+	pdf.Cell(pdfAreaWidth/2, lineHeight, fmt.Sprintf("%s %s %d", os.Getenv("TEMPLATE1_SUBJECT_PREFIX"), translatedMonths[selectedMonth-int(time.January)], selectedYear))
 	pdf.Ln(-1)
 	pdf.Ln(-1)
 
@@ -77,6 +84,7 @@ func buildTemplate1(pdf *fpdf.Fpdf) {
 	// Color and font restoration
 	pdf.SetFillColor(239, 239, 239)
 	pdf.SetFontStyle("")
+
 	for i := 0; i < 16; i++ {
 		pdf.SetX(left)
 		pdf.CellFormat(columnWidth[0], tableLineHeight, "", "1", 0, "", i%2 == 0, 0, "")
