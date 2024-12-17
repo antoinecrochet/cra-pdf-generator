@@ -21,6 +21,18 @@ type tableEntry struct {
 var translatedMonths = []string{"Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"}
 var translatedDays = []string{"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"}
 
+// Public holidays in France (days per month number)
+var publicHolidays = map[int][]int{
+	1:  {1},
+	4:  {21},
+	5:  {1, 8, 29},
+	6:  {9},
+	7:  {14},
+	8:  {15},
+	11: {1, 11},
+	12: {25},
+}
+
 // List of available templates identifiers
 var availableTemplateIds = []int{1}
 
@@ -93,13 +105,30 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int) {
 	pdf.SetFontStyle("")
 
 	tableEntries := buildTableContent(selectedYear, selectedMonth)
-	fmt.Printf("%v", tableEntries)
+	crossCharacter := "X"
+	offsetSecondColumn := 16
 	for i := 0; i < 16; i++ {
 		pdf.SetX(left)
-		pdf.CellFormat(columnWidth[0], tableLineHeight, "", "1", 0, "", i%2 == 0, 0, "")
-		pdf.CellFormat(columnWidth[1], tableLineHeight, "", "1", 0, "C", i%2 == 0, 0, "")
-		pdf.CellFormat(columnWidth[2], tableLineHeight, "", "1", 0, "", i%2 == 0, 0, "")
-		pdf.CellFormat(columnWidth[3], tableLineHeight, "", "1", 0, "C", i%2 == 0, 0, "")
+		pdf.CellFormat(columnWidth[0], tableLineHeight, tableEntries[i].day, "1", 0, "", tableEntries[i].fill, 0, "")
+		presentValue := ""
+		if tableEntries[i].present {
+			presentValue = crossCharacter
+		}
+		pdf.CellFormat(columnWidth[1], tableLineHeight, presentValue, "1", 0, "C", tableEntries[i].fill, 0, "")
+
+		if len(tableEntries)-1 < i+offsetSecondColumn {
+			pdf.CellFormat(columnWidth[2], tableLineHeight, "", "1", 0, "", false, 0, "")
+			pdf.CellFormat(columnWidth[3], tableLineHeight, "", "1", 0, "C", false, 0, "")
+			pdf.Ln(-1)
+			continue
+		}
+
+		pdf.CellFormat(columnWidth[2], tableLineHeight, tableEntries[i+offsetSecondColumn].day, "1", 0, "", tableEntries[i+offsetSecondColumn].fill, 0, "")
+		presentValueSecondary := ""
+		if tableEntries[i+offsetSecondColumn].present {
+			presentValueSecondary = crossCharacter
+		}
+		pdf.CellFormat(columnWidth[3], tableLineHeight, presentValueSecondary, "1", 0, "C", tableEntries[i+offsetSecondColumn].fill, 0, "")
 		pdf.Ln(-1)
 	}
 	pdf.SetX(left)
@@ -127,7 +156,7 @@ func buildTableContent(selectedYear int, selectedMonth int) []tableEntry {
 		tableEntries[i] = tableEntry{
 			day:     fmt.Sprintf("%s %d", translatedDays[currentWeekDay], i+1),
 			present: true,
-			fill:    currentWeekDay == time.Saturday || currentWeekDay == time.Sunday,
+			fill:    currentWeekDay == time.Saturday || currentWeekDay == time.Sunday || slices.Contains(publicHolidays[selectedMonth], i+1),
 		}
 		currentWeekDay = (currentWeekDay + 1) % 7
 	}
