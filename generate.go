@@ -16,12 +16,13 @@ var fileNameOutput string
 var templateId int
 var selectedYear int
 var selectedMonth int
+var workedDays string
 
 var generatePdfCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Generate CRA in pdf format",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := GeneratePdf(fileNameOutput, templateId, selectedYear, selectedMonth)
+		err := GeneratePdf(fileNameOutput, templateId, selectedYear, selectedMonth, workedDays)
 		if err != nil {
 			fmt.Printf("Error: %s", err)
 			return
@@ -48,6 +49,7 @@ func init() {
 	generatePdfCmd.Flags().IntVarP(&templateId, "template", "t", 1, "Pdf template identifier (only available value: 1)")
 	generatePdfCmd.Flags().IntVarP(&selectedYear, "year", "y", year, "Template 1 selected year (default is current year)")
 	generatePdfCmd.Flags().IntVarP(&selectedMonth, "month", "m", int(month), "Template 1 selected month (default is current month)")
+	generatePdfCmd.Flags().StringVarP(&workedDays, "days", "d", "", "List of worked days separated with comma")
 
 	// Add generate command to root cmd
 	rootCmd.AddCommand(generatePdfCmd)
