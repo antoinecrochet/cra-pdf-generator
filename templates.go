@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-pdf/fpdf"
@@ -36,10 +38,24 @@ var publicHolidays = map[int][]int{
 // List of available templates identifiers
 var availableTemplateIds = []int{1}
 
-func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMonth int) error {
+func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMonth int, workedDays string) error {
+	// Validate parameters
 	if !slices.Contains(availableTemplateIds, templateId) {
 		return fmt.Errorf("template %d is not a valid template (available templates are: %v)", templateId, availableTemplateIds)
 	}
+	// Convert workedDays into int array
+	var workedDaysArray []int
+	if workedDays != "" {
+		workedDaysStringArray := strings.Split(workedDays, ",")
+		for _, value := range workedDaysStringArray {
+			intWorkedDay, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+			workedDaysArray = append(workedDaysArray, intWorkedDay)
+		}
+	}
+
 	pdf := fpdf.New("P", "mm", "A4", "./assets/fonts")
 	pdf.AddUTF8Font("calibri", "", "calibri-font-family/calibri-regular.ttf")
 	pdf.AddUTF8Font("calibri", "I", "calibri-font-family/calibri-italic.ttf")
@@ -47,7 +63,7 @@ func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMont
 	pdf.AddUTF8Font("calibri", "BI", "calibri-font-family/calibri-bold-italic.ttf")
 
 	if templateId == 1 {
-		buildTemplate1(pdf, selectedYear, selectedMonth)
+		buildTemplate1(pdf, selectedYear, selectedMonth, workedDaysArray)
 	}
 
 	fileStr := filepath.Join(currentDirectory, fileName)
@@ -60,12 +76,17 @@ func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMont
 }
 
 // Build template 1
-func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int) {
-	pdf.AddPage()
-
+func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int, workedDays []int) {
+	// constants
 	lineHeight := 6.
 	marginX := 25.
 	left := marginX
+	crossCharacter := "x"
+	offsetSecondColumn := 16
+
+	// Add new page
+	pdf.AddPage()
+
 	pageWidth, _ := pdf.GetPageSize()
 	pdfAreaWidth := pageWidth - 2*marginX
 	pdf.SetFont("calibri", "", 12)
@@ -104,9 +125,8 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int) {
 	pdf.SetFillColor(239, 239, 239)
 	pdf.SetFontStyle("")
 
-	tableEntries := buildTableContent(selectedYear, selectedMonth)
-	crossCharacter := "X"
-	offsetSecondColumn := 16
+	// Build table
+	tableEntries := buildTableContent(selectedYear, selectedMonth, workedDays)
 	for i := 0; i < 16; i++ {
 		pdf.SetX(left)
 		pdf.CellFormat(columnWidth[0], tableLineHeight, tableEntries[i].day, "1", 0, "", tableEntries[i].fill, 0, "")
@@ -134,10 +154,11 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int) {
 	pdf.SetX(left)
 	pdf.SetFontStyle("B")
 	pdf.CellFormat(columnWidth[0]+columnWidth[1], tableLineHeight, os.Getenv("TEMPLATE1_TOTAL_TITLE"), "1", 0, "", false, 0, "")
-	pdf.CellFormat(columnWidth[2]+columnWidth[3], tableLineHeight, "10", "1", 0, "C", false, 0, "")
+	pdf.CellFormat(columnWidth[2]+columnWidth[3], tableLineHeight, strconv.Itoa(len(workedDays)), "1", 0, "C", false, 0, "")
 	pdf.Ln(-1)
 	pdf.Ln(-1)
 
+	// Page footer
 	pdf.SetX(left)
 	pdf.SetFontStyle("")
 	pdf.CellFormat(pdfAreaWidth/2, lineHeight, os.Getenv("TEMPLATE1_SENDER_SIGNATURE_TITLE"), "", 0, "L", false, 0, "")
@@ -146,17 +167,17 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int) {
 }
 
 // Build table entries representing weekdays of the selected month
-func buildTableContent(selectedYear int, selectedMonth int) []tableEntry {
+func buildTableContent(selectedYear int, selectedMonth int, workedDays []int) []tableEntry {
 	daysInMonth := time.Date(selectedYear, time.Month(selectedMonth)+1, 0, 0, 0, 0, 0, time.UTC).Day()
 	firstWeekdayInMonth := time.Date(selectedYear, time.Month(selectedMonth), 1, 0, 0, 0, 0, time.UTC).Weekday()
 
 	tableEntries := make([]tableEntry, daysInMonth)
 	currentWeekDay := firstWeekdayInMonth
-	for i := 0; i < daysInMonth; i++ {
-		tableEntries[i] = tableEntry{
-			day:     fmt.Sprintf("%s %d", translatedDays[currentWeekDay], i+1),
-			present: true,
-			fill:    currentWeekDay == time.Saturday || currentWeekDay == time.Sunday || slices.Contains(publicHolidays[selectedMonth], i+1),
+	for i := 1; i <= daysInMonth; i++ {
+		tableEntries[i-1] = tableEntry{
+			day:     fmt.Sprintf("%s %d", translatedDays[currentWeekDay], i),
+			present: slices.Contains(workedDays, i),
+			fill:    currentWeekDay == time.Saturday || currentWeekDay == time.Sunday || slices.Contains(publicHolidays[selectedMonth], i),
 		}
 		currentWeekDay = (currentWeekDay + 1) % 7
 	}
