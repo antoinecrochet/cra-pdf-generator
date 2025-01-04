@@ -38,7 +38,7 @@ var publicHolidays = map[int][]int{
 // List of available templates identifiers
 var availableTemplateIds = []int{1}
 
-func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMonth int, workedDays string) error {
+func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMonth int, workedDays string, notWorkedDays string) error {
 	// Validate parameters
 	if !slices.Contains(availableTemplateIds, templateId) {
 		return fmt.Errorf("template %d is not a valid template (available templates are: %v)", templateId, availableTemplateIds)
@@ -55,6 +55,18 @@ func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMont
 			workedDaysArray = append(workedDaysArray, intWorkedDay)
 		}
 	}
+	// Convert notWorkedDays into int array
+	var notWorkedDaysArray []int
+	if notWorkedDays != "" {
+		notWorkedDaysStringArray := strings.Split(notWorkedDays, ",")
+		for _, value := range notWorkedDaysStringArray {
+			intNotWorkedDay, err := strconv.Atoi(value)
+			if err != nil {
+				return err
+			}
+			notWorkedDaysArray = append(notWorkedDaysArray, intNotWorkedDay)
+		}
+	}
 
 	pdf := fpdf.New("P", "mm", "A4", "./assets/fonts")
 	pdf.AddUTF8Font("calibri", "", "calibri-font-family/calibri-regular.ttf")
@@ -63,7 +75,7 @@ func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMont
 	pdf.AddUTF8Font("calibri", "BI", "calibri-font-family/calibri-bold-italic.ttf")
 
 	if templateId == 1 {
-		buildTemplate1(pdf, selectedYear, selectedMonth, workedDaysArray)
+		buildTemplate1(pdf, selectedYear, selectedMonth, workedDaysArray, notWorkedDaysArray)
 	}
 
 	fileStr := filepath.Join(currentDirectory, fileName)
@@ -76,7 +88,7 @@ func GeneratePdf(fileName string, templateId int, selectedYear int, selectedMont
 }
 
 // Build template 1
-func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int, workedDays []int) {
+func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int, workedDays []int, notWorkedDays []int) {
 	// constants
 	lineHeight := 6.
 	marginX := 25.
@@ -126,7 +138,7 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int, workedD
 	pdf.SetFontStyle("")
 
 	// Build table
-	tableEntries := buildTableContent(selectedYear, selectedMonth, workedDays)
+	tableEntries, countTotalWorkedDays := buildTableContent(selectedYear, selectedMonth, workedDays, notWorkedDays)
 	for i := 0; i < 16; i++ {
 		pdf.SetX(left)
 		pdf.CellFormat(columnWidth[0], tableLineHeight, tableEntries[i].day, "1", 0, "", tableEntries[i].fill, 0, "")
@@ -154,7 +166,7 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int, workedD
 	pdf.SetX(left)
 	pdf.SetFontStyle("B")
 	pdf.CellFormat(columnWidth[0]+columnWidth[1], tableLineHeight, os.Getenv("TEMPLATE1_TOTAL_TITLE"), "1", 0, "", false, 0, "")
-	pdf.CellFormat(columnWidth[2]+columnWidth[3], tableLineHeight, strconv.Itoa(len(workedDays)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(columnWidth[2]+columnWidth[3], tableLineHeight, strconv.Itoa(countTotalWorkedDays), "1", 0, "C", false, 0, "")
 	pdf.Ln(-1)
 	pdf.Ln(-1)
 
@@ -167,20 +179,28 @@ func buildTemplate1(pdf *fpdf.Fpdf, selectedYear int, selectedMonth int, workedD
 }
 
 // Build table entries representing weekdays of the selected month
-func buildTableContent(selectedYear int, selectedMonth int, workedDays []int) []tableEntry {
+// Returns entry tables and the total number of worked days in the month
+func buildTableContent(selectedYear int, selectedMonth int, workedDays []int, notWorkedDays []int) ([]tableEntry, int) {
 	daysInMonth := time.Date(selectedYear, time.Month(selectedMonth)+1, 0, 0, 0, 0, 0, time.UTC).Day()
 	firstWeekdayInMonth := time.Date(selectedYear, time.Month(selectedMonth), 1, 0, 0, 0, 0, time.UTC).Weekday()
+	workedDaysHasValues := len(workedDays) > 0
 
 	tableEntries := make([]tableEntry, daysInMonth)
 	currentWeekDay := firstWeekdayInMonth
+	countTotalWorkedDays := 0
 	for i := 1; i <= daysInMonth; i++ {
+		isNonWorkingDay := currentWeekDay == time.Saturday || currentWeekDay == time.Sunday || slices.Contains(publicHolidays[selectedMonth], i)
+		isPresent := slices.Contains(workedDays, i) || (!workedDaysHasValues && !isNonWorkingDay && !slices.Contains(notWorkedDays, i))
 		tableEntries[i-1] = tableEntry{
 			day:     fmt.Sprintf("%s %d", translatedDays[currentWeekDay], i),
-			present: slices.Contains(workedDays, i),
-			fill:    currentWeekDay == time.Saturday || currentWeekDay == time.Sunday || slices.Contains(publicHolidays[selectedMonth], i),
+			present: isPresent,
+			fill:    isNonWorkingDay,
 		}
 		currentWeekDay = (currentWeekDay + 1) % 7
+		if isPresent {
+			countTotalWorkedDays++
+		}
 	}
 
-	return tableEntries
+	return tableEntries, countTotalWorkedDays
 }
